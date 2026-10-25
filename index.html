@@ -1,1 +1,216 @@
 
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101a32">
+<title>MUBARAK TRADERS</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5fa;color:#17233d;font-family:Arial,sans-serif}
+header{background:linear-gradient(135deg,#101a32,#263c63);color:white;padding:24px 18px;border-bottom:4px solid #d6ad58}
+header h1{font-size:23px;margin:0 0 8px;direction:ltr;text-align:right}
+header p{margin:0;color:#e5c879}
+main{padding:15px;max-width:850px;margin:auto}
+h2{font-size:18px;margin:22px 0 12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:white;border-radius:15px;padding:16px;box-shadow:0 3px 12px #17233d0d;border:1px solid #e5e9f2}
+.stat small{color:#68758c}
+.stat strong{display:block;font-size:23px;color:#b58a32;margin-top:10px;overflow-wrap:anywhere}
+form{display:grid;gap:10px}
+input,select,button{font:inherit;padding:12px;border-radius:9px;width:100%}
+input,select{border:1px solid #d8deea;background:#fff}
+button{border:0;background:#172746;color:white;font-weight:bold;cursor:pointer}
+button.gold{background:#bd943e;color:#fff}
+button.danger{background:#a93737;padding:8px;font-size:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.item{margin-top:10px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.muted{color:#69758b;font-size:13px}
+.amount{color:#9b7626;font-weight:bold}
+footer{text-align:center;color:#7c8798;padding:25px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<h1>MUBARAK TRADERS</h1>
+<p>آسان اقساط • اعتماد • بہترین سروس</p>
+<div style="margin-top:18px">کاروباری ڈیش بورڈ</div>
+</header>
+<main>
+<div class="stats">
+<div class="card stat"><small>کل گاہک</small><strong id="totalCustomers">0</strong></div>
+<div class="card stat"><small>کل فروخت (روپے)</small><strong id="totalSales">0</strong></div>
+<div class="card stat"><small>وصول شدہ رقم (روپے)</small><strong id="totalPaid">0</strong></div>
+<div class="card stat"><small>باقی رقم (روپے)</small><strong id="totalDue">0</strong></div>
+</div>
+
+<h2>＋ نیا گاہک / قسطوں کا معاہدہ</h2>
+<div class="card">
+<form id="customerForm">
+<input id="name" placeholder="گاہک کا پورا نام" required>
+<input id="phone" placeholder="موبائل نمبر" inputmode="tel">
+<input id="product" placeholder="سامان: موبائل، پنکھا، لیپ ٹاپ وغیرہ" required>
+<input id="price" type="number" min="0" placeholder="سامان کی کل قیمت (روپے)" required>
+<input id="advance" type="number" min="0" placeholder="ایڈوانس رقم (روپے)" value="0" required>
+<input id="installment" type="number" min="0" placeholder="ماہانہ قسط (روپے)" required>
+<button class="gold" type="submit">گاہک محفوظ کریں</button>
+</form>
+</div>
+
+<h2>＋ قسط وصول کریں</h2>
+<div class="card">
+<form id="paymentForm">
+<select id="customerSelect" required>
+<option value="">گاہک منتخب کریں</option>
+</select>
+<input id="paymentAmount" type="number" min="1" placeholder="وصول شدہ رقم (روپے)" required>
+<input id="paymentDate" type="date" required>
+<button type="submit">رقم وصول کریں</button>
+</form>
+</div>
+
+<div class="actions" style="margin-top:16px">
+<button onclick="exportData()">بیک اپ ڈاؤن لوڈ کریں</button>
+<button onclick="document.getElementById('restoreFile').click()">بیک اپ بحال کریں</button>
+<input id="restoreFile" type="file" accept=".json,application/json" hidden>
+</div>
+
+<h2>گاہکوں کا ریکارڈ</h2>
+<div id="customerList"></div>
+
+<h2>حالیہ وصولیاں</h2>
+<div class="card" id="paymentList">ابھی کوئی وصولی درج نہیں۔</div>
+</main>
+<footer>MUBARAK TRADERS • ابتدائی آف لائن ورژن</footer>
+
+<script>
+const KEY="mubarak_traders_v1";
+let data;
+try{
+ data=JSON.parse(localStorage.getItem(KEY))||{customers:[],payments:[]};
+}catch(e){data={customers:[],payments:[]};}
+
+const $=id=>document.getElementById(id);
+const money=n=>Number(n||0).toLocaleString("en-PK");
+const save=()=>localStorage.setItem(KEY,JSON.stringify(data));
+const today=new Date().toISOString().slice(0,10);
+$("paymentDate").value=today;
+
+function paidFor(c){
+ return data.payments.filter(p=>p.customerId===c.id)
+ .reduce((sum,p)=>sum+Number(p.amount),0);
+}
+function dueFor(c){
+ return Math.max(0,Number(c.price)-Number(c.advance)-paidFor(c));
+}
+function render(){
+ $("totalCustomers").textContent=data.customers.length;
+ $("totalSales").textContent=money(data.customers.reduce((s,c)=>s+Number(c.price),0));
+ $("totalPaid").textContent=money(data.customers.reduce((s,c)=>s+Number(c.advance),0)+data.payments.reduce((s,p)=>s+Number(p.amount),0));
+ $("totalDue").textContent=money(data.customers.reduce((s,c)=>s+dueFor(c),0));
+
+ const select=$("customerSelect");
+ const previous=select.value;
+ select.innerHTML='<option value="">گاہک منتخب کریں</option>';
+ data.customers.forEach(c=>{
+  const o=document.createElement("option");
+  o.value=c.id;o.textContent=c.name+" — باقی "+money(dueFor(c));
+  select.appendChild(o);
+ });
+ if(data.customers.some(c=>c.id===previous))select.value=previous;
+
+ const list=$("customerList");
+ list.replaceChildren();
+ if(!data.customers.length)list.textContent="ابھی کوئی گاہک شامل نہیں۔";
+ data.customers.slice().reverse().forEach(c=>{
+  const box=document.createElement("div");box.className="card item";
+  const row=document.createElement("div");row.className="row";
+  const info=document.createElement("div");
+  const title=document.createElement("strong");title.textContent=c.name;
+  const detail=document.createElement("div");detail.className="muted";
+  detail.textContent=(c.phone||"نمبر درج نہیں")+" • "+c.product;
+  info.append(title,detail);
+  const due=document.createElement("strong");due.className="amount";due.textContent="باقی "+money(dueFor(c));
+  row.append(info,due);
+  const more=document.createElement("p");more.className="muted";
+  more.textContent="قیمت: "+money(c.price)+" | ایڈوانس: "+money(c.advance)+" | ماہانہ قسط: "+money(c.installment);
+  const print=document.createElement("button");print.textContent="رسید / پرنٹ";
+  print.onclick=()=>receipt(c.id);
+  box.append(row,more,print);
+  list.appendChild(box);
+ });
+
+ const pl=$("paymentList");pl.replaceChildren();
+ const recent=data.payments.slice().reverse().slice(0,10);
+ if(!recent.length){pl.textContent="ابھی کوئی وصولی درج نہیں۔";return;}
+ recent.forEach(p=>{
+  const c=data.customers.find(x=>x.id===p.customerId);
+  const line=document.createElement("div");line.className="item";
+  line.textContent=(c?c.name:"گاہک")+" • Rs "+money(p.amount)+" • "+p.date;
+  pl.appendChild(line);
+ });
+}
+$("customerForm").addEventListener("submit",e=>{
+ e.preventDefault();
+ const price=Number($("price").value),advance=Number($("advance").value);
+ if(advance>price){alert("ایڈوانس کل قیمت سے زیادہ نہیں ہو سکتا۔");return;}
+ data.customers.push({
+  id:Date.now().toString(),name:$("name").value.trim(),
+  phone:$("phone").value.trim(),product:$("product").value.trim(),
+  price,advance,installment:Number($("installment").value)
+ });
+ save();e.target.reset();$("advance").value="0";render();
+ alert("گاہک کا ریکارڈ محفوظ ہو گیا۔");
+});
+$("paymentForm").addEventListener("submit",e=>{
+ e.preventDefault();
+ const c=data.customers.find(x=>x.id===$("customerSelect").value);
+ const amount=Number($("paymentAmount").value);
+ if(!c){alert("گاہک منتخب کریں۔");return;}
+ if(amount<=0||amount>dueFor(c)){alert("رقم درست درج کریں۔ یہ باقی رقم سے زیادہ نہیں ہو سکتی۔");return;}
+ data.payments.push({id:Date.now().toString(),customerId:c.id,amount,date:$("paymentDate").value});
+ save();$("paymentAmount").value="";render();
+ alert("قسط وصولی درج ہو گئی۔");
+});
+function receipt(id){
+ const c=data.customers.find(x=>x.id===id);if(!c)return;
+ const history=data.payments.filter(p=>p.customerId===id);
+ const w=window.open("","_blank");
+ if(!w){alert("رسید کے لیے براؤزر میں پاپ اپ کی اجازت دیں۔");return;}
+ w.document.write(`<html lang="ur" dir="rtl"><meta charset="UTF-8"><title>رسید</title>
+ <body style="font-family:Arial;padding:25px"><h2>MUBARAK TRADERS</h2>
+ <h3>گاہک کی قسطوں کی رسید / تفصیل</h3>
+ <p>نام: ${esc(c.name)}</p><p>موبائل: ${esc(c.phone)}</p>
+ <p>سامان: ${esc(c.product)}</p><p>کل قیمت: Rs ${money(c.price)}</p>
+ <p>ایڈوانس: Rs ${money(c.advance)}</p>
+ <p>بعد میں وصول شدہ: Rs ${money(paidFor(c))}</p>
+ <h3>باقی رقم: Rs ${money(dueFor(c))}</h3><hr><h4>وصولیوں کی تفصیل</h4>
+ ${history.map(p=>`<p>${esc(p.date)} — Rs ${money(p.amount)}</p>`).join("")}
+ <p>دستخط: __________________</p><button onclick="window.print()">پرنٹ کریں</button></body></html>`);
+ w.document.close();
+}
+function esc(s){
+ return String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function exportData(){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+ a.download="mubarak-traders-backup.json";a.click();URL.revokeObjectURL(a.href);
+}
+$("restoreFile").addEventListener("change",async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const d=JSON.parse(await file.text());
+  if(!Array.isArray(d.customers)||!Array.isArray(d.payments))throw Error();
+  if(!confirm("موجودہ ریکارڈ کی جگہ بیک اپ بحال کرنا ہے؟"))return;
+  data=d;save();render();alert("بیک اپ بحال ہو گیا۔");
+ }catch(err){alert("یہ درست بیک اپ فائل نہیں ہے۔");}
+ e.target.value="";
+});
+render();
+</script>
+</body>
+</html>
+
